@@ -1,0 +1,113 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.44.1.10279",
+      "templateHash": "6245412964581569895"
+    }
+  },
+  "parameters": {
+    "name": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {}
+    },
+    "logAnalyticsWorkspaceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource ID of the Log Analytics workspace to back this Application Insights instance."
+      }
+    },
+    "slowResponseThresholdMs": {
+      "type": "int",
+      "defaultValue": 5000,
+      "metadata": {
+        "description": "Slow-response alert threshold in milliseconds. Requests whose rolling average exceeds this value will fire an alert. Default: 5000 ms."
+      }
+    },
+    "alertWindowSize": {
+      "type": "string",
+      "defaultValue": "PT5M",
+      "metadata": {
+        "description": "Evaluation window and frequency for the slow-response alert (ISO 8601 duration). Default: PT5M (5 minutes)."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[parameters('name')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[parameters('logAnalyticsWorkspaceId')]",
+        "RetentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2022-06-15",
+      "name": "[format('{0}-slow-customer-response', parameters('name'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "description": "[format('Fires when the 5-minute average duration of customer-facing requests exceeds {0} ms. Internal localhost/MSI token requests are excluded to prevent false positives during environment bring-up.', parameters('slowResponseThresholdMs'))]",
+        "severity": 2,
+        "enabled": true,
+        "evaluationFrequency": "[parameters('alertWindowSize')]",
+        "windowSize": "[parameters('alertWindowSize')]",
+        "scopes": [
+          "[resourceId('Microsoft.Insights/components', parameters('name'))]"
+        ],
+        "criteria": {
+          "allOf": [
+            {
+              "query": "requests\n| where url !startswith \"http://localhost\"\n| where url !startswith \"https://localhost\"\n| where url !contains \"/msi/token\"\n| summarize avg_duration_ms = avg(duration)\n| where isnotnull(avg_duration_ms)",
+              "timeAggregation": "Count",
+              "metricMeasureColumn": "avg_duration_ms",
+              "operator": "GreaterThan",
+              "threshold": "[parameters('slowResponseThresholdMs')]",
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "autoMitigate": true
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', parameters('name'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "id": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Insights/components', parameters('name'))]"
+    },
+    "name": {
+      "type": "string",
+      "value": "[parameters('name')]"
+    },
+    "connectionString": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/components', parameters('name')), '2020-02-02').ConnectionString]"
+    },
+    "instrumentationKey": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/components', parameters('name')), '2020-02-02').InstrumentationKey]"
+    }
+  }
+}

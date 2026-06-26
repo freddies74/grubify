@@ -1,6 +1,13 @@
+using GrubifyApi.Telemetry;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add Application Insights with a filter that excludes internal MSI/localhost
+// token requests so they do not pollute customer-latency metrics or trigger
+// false-positive slow-response alerts (see incident ai-Zava-xnfiyr).
+builder.Services.AddApplicationInsightsTelemetry();
+builder.Services.AddApplicationInsightsTelemetryProcessor<InternalRequestFilter>();
 
 // Add services to the container.
 builder.Services.AddControllers();
