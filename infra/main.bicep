@@ -18,6 +18,9 @@ param apiImage string = ''
 @description('Frontend container image')
 param frontendImage string = ''
 
+@description('Approved source address prefixes for inbound RDP access to jumpbox (e.g. corporate VPN CIDR). Leave empty to block all inbound RDP.')
+param jumpboxRdpSourceAddressPrefixes array = []
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
@@ -27,6 +30,37 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : 'rg-grubify-app'
   location: location
   tags: tags
+}
+
+// Jumpbox NSG — manages jbox01852_z1-nsg via IaC.
+// The broad inbound RDP rule (TCP/3389 source=* destination=*) is intentionally
+// excluded. RDP is only permitted from explicitly approved source prefixes supplied
+// through the jumpboxRdpSourceAddressPrefixes parameter; if that array is empty
+// no inbound RDP rule is created and port 3389 is blocked by the default-deny rule.
+module jumpboxNsg 'core/network/network-security-group.bicep' = {
+  name: 'jumpbox-nsg'
+  scope: rg
+  params: {
+    name: 'jbox01852_z1-nsg'
+    location: location
+    tags: tags
+    securityRules: !empty(jumpboxRdpSourceAddressPrefixes) ? [
+      {
+        name: 'Allow-RDP-Approved-Sources'
+        properties: {
+          priority: 100
+          protocol: 'Tcp'
+          access: 'Allow'
+          direction: 'Inbound'
+          sourceAddressPrefixes: jumpboxRdpSourceAddressPrefixes
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '3389'
+          description: 'Allow RDP only from approved source address prefixes to VirtualNetwork resources.'
+        }
+      }
+    ] : []
+  }
 }
 
 // Container registry
