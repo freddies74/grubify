@@ -51,6 +51,21 @@ module containerAppsEnvironment 'core/host/container-apps-environment.bicep' = {
   }
 }
 
+// Application Insights — backed by the same Log Analytics workspace used by the
+// Container Apps Environment. The module also provisions a scheduled query rule
+// alert that excludes internal MSI/localhost requests from latency evaluation
+// (prevents false-positive alerts like incident ai-Zava-xnfiyr).
+module applicationInsights 'core/monitor/application-insights.bicep' = {
+  name: 'application-insights'
+  scope: rg
+  params: {
+    name: 'ai-${resourceToken}'
+    location: location
+    tags: tags
+    logAnalyticsWorkspaceId: containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
+  }
+}
+
 // Container app for the API
 module api 'core/host/container-app.bicep' = {
   name: 'api'
@@ -75,6 +90,10 @@ module api 'core/host/container-app.bicep' = {
       {
         name: 'AllowedOrigins__0'
         value: 'https://ca-grubify-frontend.${containerAppsEnvironment.outputs.defaultDomain}'
+      }
+      {
+        name: 'ApplicationInsights__ConnectionString'
+        value: applicationInsights.outputs.connectionString
       }
     ]
   }
@@ -113,6 +132,9 @@ output RESOURCE_GROUP_ID string = rg.id
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.outputs.name
+
+output APPLICATIONINSIGHTS_NAME string = applicationInsights.outputs.name
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = applicationInsights.outputs.connectionString
 
 output API_BASE_URL string = 'https://${api.outputs.fqdn}'
 output FRONTEND_URL string = 'https://${frontend.outputs.fqdn}'
