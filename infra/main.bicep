@@ -51,6 +51,20 @@ module containerAppsEnvironment 'core/host/container-apps-environment.bicep' = {
   }
 }
 
+// Application Insights — wired to the Container Apps Log Analytics workspace.
+// Uses a query-based alert that excludes internal MSI/token localhost requests to
+// prevent false-positive slow-response-time alerts (see incident afaa332a).
+module applicationInsights 'core/monitor/applicationinsights.bicep' = {
+  name: 'application-insights'
+  scope: rg
+  params: {
+    name: '${abbrs.insightsComponents}${resourceToken}'
+    location: location
+    tags: tags
+    logAnalyticsWorkspaceId: containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
+  }
+}
+
 // Container app for the API
 module api 'core/host/container-app.bicep' = {
   name: 'api'
@@ -67,6 +81,7 @@ module api 'core/host/container-app.bicep' = {
     external: true
     minReplicas: 1  // Always keep 1 instance running
     maxReplicas: 1  // No autoscaling - single instance only
+    containerAppsEnvironmentOidcIssuer: containerAppsEnvironment.outputs.oidcIssuer
     env: [
       {
         name: 'ASPNETCORE_ENVIRONMENT'
@@ -75,6 +90,10 @@ module api 'core/host/container-app.bicep' = {
       {
         name: 'AllowedOrigins__0'
         value: 'https://ca-grubify-frontend.${containerAppsEnvironment.outputs.defaultDomain}'
+      }
+      {
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: applicationInsights.outputs.connectionString
       }
     ]
   }
@@ -96,6 +115,7 @@ module frontend 'core/host/container-app.bicep' = {
     external: true
     minReplicas: 1  // Always keep 1 instance running
     maxReplicas: 1  // No autoscaling - single instance only
+    containerAppsEnvironmentOidcIssuer: containerAppsEnvironment.outputs.oidcIssuer
     env: [
       {
         name: 'REACT_APP_API_BASE_URL'
@@ -113,6 +133,9 @@ output RESOURCE_GROUP_ID string = rg.id
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.outputs.name
+
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = applicationInsights.outputs.connectionString
+output APPLICATIONINSIGHTS_NAME string = applicationInsights.outputs.name
 
 output API_BASE_URL string = 'https://${api.outputs.fqdn}'
 output FRONTEND_URL string = 'https://${frontend.outputs.fqdn}'

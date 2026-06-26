@@ -15,7 +15,13 @@ param maxReplicas int = 3
 param env array = []
 param activeRevisionsMode string = 'Single'
 
-resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' existing = {
+// Workload identity support: provide the Container Apps environment OIDC issuer URL
+// to enable federated credentials for this app's managed identity.
+// Prevents the empty-federated-credential state that can cause authentication failures.
+@description('OIDC issuer URL of the Container Apps environment. When non-empty, a federated identity credential is created for workload identity.')
+param containerAppsEnvironmentOidcIssuer string = ''
+
+resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
   name: containerAppsEnvironmentName
 }
 
@@ -38,6 +44,19 @@ resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull role
     principalId: userIdentity.properties.principalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// Federated identity credential so the workload can exchange tokens with the Container Apps
+// OIDC endpoint. This prevents the empty-federated-credential state that would otherwise
+// cause authentication failures when the workload identity path is used.
+resource federatedCredential 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = if (!empty(containerAppsEnvironmentOidcIssuer)) {
+  parent: userIdentity
+  name: 'containerapp-fedcred'
+  properties: {
+    audiences: ['api://AzureADTokenExchange']
+    issuer: containerAppsEnvironmentOidcIssuer
+    subject: name
   }
 }
 
