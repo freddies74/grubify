@@ -51,6 +51,18 @@ module containerAppsEnvironment 'core/host/container-apps-environment.bicep' = {
   }
 }
 
+// Alert for true HTTP 5xx responses on user-facing endpoints
+module http5xxAlert 'core/monitoring/http-5xx-alert.bicep' = {
+  name: 'http-5xx-alert'
+  scope: rg
+  params: {
+    name: 'grubify-http-5xx-errors'
+    location: location
+    tags: tags
+    workspaceResourceId: containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
+  }
+}
+
 // Container app for the API
 module api 'core/host/container-app.bicep' = {
   name: 'api'
