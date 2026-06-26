@@ -1,0 +1,73 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.44.1.10279",
+      "templateHash": "9736593166955909984"
+    }
+  },
+  "parameters": {
+    "name": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {}
+    },
+    "workspaceResourceId": {
+      "type": "string"
+    },
+    "threshold": {
+      "type": "int",
+      "defaultValue": 5,
+      "metadata": {
+        "description": "Number of HTTP 5xx requests required to trigger the alert."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/scheduledQueryRules",
+      "apiVersion": "2023-12-01",
+      "name": "[parameters('name')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "kind": "LogAlert",
+      "properties": {
+        "description": "Alerts on true HTTP 5xx responses for user-facing endpoints and excludes known scanner noise.",
+        "displayName": "[parameters('name')]",
+        "enabled": true,
+        "severity": 2,
+        "autoMitigate": true,
+        "scopes": [
+          "[parameters('workspaceResourceId')]"
+        ],
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteria": {
+          "allOf": [
+            {
+              "query": "            AppRequests\n            | where TimeGenerated >= ago(5m)\n            | extend StatusCode = toint(ResultCode)\n            | extend UrlLower = tolower(tostring(Url))\n            | where StatusCode >= 500 and StatusCode < 600\n            | where UrlLower has '/api/' or UrlLower has '/health' or UrlLower has '/livez'\n            | where not(UrlLower has '/vendor/phpunit' or UrlLower has 'pearcmd' or UrlLower has '/hello.world')\n          ",
+              "timeAggregation": "Count",
+              "operator": "GreaterThan",
+              "threshold": "[parameters('threshold')]",
+              "failingPeriods": {
+                "numberOfEvaluationPeriods": 1,
+                "minFailingPeriodsToAlert": 1
+              }
+            }
+          ]
+        },
+        "actions": {
+          "actionGroups": []
+        }
+      }
+    }
+  ]
+}
