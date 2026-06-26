@@ -51,6 +51,17 @@ module containerAppsEnvironment 'core/host/container-apps-environment.bicep' = {
   }
 }
 
+module monitoring 'core/monitoring/application-insights-http-alert.bicep' = {
+  name: 'monitoring'
+  scope: rg
+  params: {
+    namePrefix: resourceToken
+    location: location
+    tags: tags
+    workspaceResourceId: containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
+  }
+}
+
 // Container app for the API
 module api 'core/host/container-app.bicep' = {
   name: 'api'
