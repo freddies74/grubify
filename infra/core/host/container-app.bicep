@@ -14,6 +14,13 @@ param minReplicas int = 1
 param maxReplicas int = 3
 param env array = []
 param activeRevisionsMode string = 'Single'
+param workloadIdentityEnabled bool = false
+param workloadIdentityCredentialName string = 'aks-workload-identity'
+param workloadIdentityIssuer string = ''
+param workloadIdentitySubject string = ''
+param workloadIdentityAudiences array = [
+  'api://AzureADTokenExchange'
+]
 
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' existing = {
   name: containerAppsEnvironmentName
@@ -28,6 +35,16 @@ resource userIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-
   location: location
   tags: {
     'azd-env-name': tags['azd-env-name']
+  }
+}
+
+resource federatedIdentityCredential 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = if (workloadIdentityEnabled) {
+  name: workloadIdentityCredentialName
+  parent: userIdentity
+  properties: {
+    audiences: workloadIdentityAudiences
+    issuer: workloadIdentityIssuer
+    subject: workloadIdentitySubject
   }
 }
 
@@ -98,3 +115,8 @@ output id string = containerApp.id
 output name string = containerApp.name
 output fqdn string = containerApp.properties.configuration.ingress.fqdn
 output uri string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
+output identityId string = userIdentity.id
+output identityName string = userIdentity.name
+output workloadIdentityCredentialName string = workloadIdentityEnabled ? federatedIdentityCredential.name : ''
+output workloadIdentityIssuer string = workloadIdentityEnabled ? workloadIdentityIssuer : ''
+output workloadIdentitySubject string = workloadIdentityEnabled ? workloadIdentitySubject : ''

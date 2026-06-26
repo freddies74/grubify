@@ -20,3 +20,12 @@ hooks:
       echo "🍕 Grubify Food Delivery App deployed successfully!"
       echo "Frontend URL: $env:FRONTEND_URL"
       echo "API URL: $env:API_BASE_URL"
+      if ($env:API_WORKLOAD_IDENTITY_ENABLED -eq "true") {
+        echo "🔐 Validating API workload identity federated credential..."
+        & ./scripts/validate-federated-credential.ps1 `
+          -ResourceGroupName $env:AZURE_RESOURCE_GROUP `
+          -IdentityName $env:API_MANAGED_IDENTITY_NAME `
+          -CredentialName $env:API_WORKLOAD_IDENTITY_CREDENTIAL_NAME `
+          -ExpectedIssuer $env:API_WORKLOAD_IDENTITY_ISSUER `
+          -ExpectedSubject $env:API_WORKLOAD_IDENTITY_SUBJECT
+      }

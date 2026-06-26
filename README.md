@@ -16,6 +16,7 @@ A modern food delivery application built with React TypeScript frontend and .NET
 - **Backend**: .NET 9 Web API with RESTful endpoints
 - **Infrastructure**: Azure Container Apps + Container Registry
 - **Deployment**: Azure Developer CLI (azd)
+- **Identity**: Optional federated workload identity support for AKS-managed service accounts
 
 ## 🚀 Complete Deployment Guide
 
@@ -94,6 +95,16 @@ This creates:
 - **Frontend Container App**: `ca-grubify-frontend`
 - **Log Analytics Workspace**: `log-grubify`
 
+### Optional: Configure AKS workload identity federation for the API
+
+If the API needs to exchange an AKS service account token for an Entra ID token, set the following Bicep parameters before deployment:
+
+- `apiWorkloadIdentityIssuer` — the AKS OIDC issuer URL
+- `apiWorkloadIdentitySubject` — the Kubernetes service account subject in the form `system:serviceaccount:<namespace>:<name>`
+- `apiWorkloadIdentityCredentialName` — optional override for the federated credential name
+
+When these values are provided, the deployment creates a federated identity credential on the API managed identity and the `azd` post-deploy hook automatically validates that the deployed credential matches the expected issuer and subject.
+
 ### 6. Ready for SRE Scenarios
 
 Now you have:
@@ -108,4 +119,3 @@ Now you have:
 4. **Setup incident handler** with custom instructions for automated diagnosis and mitigation
 5. **Simulate memory leak** using the deployed application endpoints
 6. **Create incident in Service Now** to trigger SRE agent response
-

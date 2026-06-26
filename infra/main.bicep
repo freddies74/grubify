@@ -18,9 +18,19 @@ param apiImage string = ''
 @description('Frontend container image')
 param frontendImage string = ''
 
+@description('OIDC issuer URL for the API managed identity federated credential. Leave empty to disable workload identity federation.')
+param apiWorkloadIdentityIssuer string = ''
+
+@description('Kubernetes service account subject for the API managed identity federated credential. Leave empty to disable workload identity federation.')
+param apiWorkloadIdentitySubject string = ''
+
+@description('Name of the federated identity credential created on the API managed identity.')
+param apiWorkloadIdentityCredentialName string = 'aks-workload-identity'
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
+var apiWorkloadIdentityEnabled = startsWith(apiWorkloadIdentityIssuer, 'https://') && startsWith(apiWorkloadIdentitySubject, 'system:serviceaccount:')
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -67,6 +77,10 @@ module api 'core/host/container-app.bicep' = {
     external: true
     minReplicas: 1  // Always keep 1 instance running
     maxReplicas: 1  // No autoscaling - single instance only
+    workloadIdentityEnabled: apiWorkloadIdentityEnabled
+    workloadIdentityCredentialName: apiWorkloadIdentityCredentialName
+    workloadIdentityIssuer: apiWorkloadIdentityIssuer
+    workloadIdentitySubject: apiWorkloadIdentitySubject
     env: [
       {
         name: 'ASPNETCORE_ENVIRONMENT'
@@ -116,3 +130,9 @@ output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.outputs.name
 
 output API_BASE_URL string = 'https://${api.outputs.fqdn}'
 output FRONTEND_URL string = 'https://${frontend.outputs.fqdn}'
+output API_MANAGED_IDENTITY_ID string = api.outputs.identityId
+output API_MANAGED_IDENTITY_NAME string = api.outputs.identityName
+output API_WORKLOAD_IDENTITY_ENABLED bool = apiWorkloadIdentityEnabled
+output API_WORKLOAD_IDENTITY_CREDENTIAL_NAME string = api.outputs.workloadIdentityCredentialName
+output API_WORKLOAD_IDENTITY_ISSUER string = api.outputs.workloadIdentityIssuer
+output API_WORKLOAD_IDENTITY_SUBJECT string = api.outputs.workloadIdentitySubject
