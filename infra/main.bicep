@@ -30,7 +30,10 @@ param apiWorkloadIdentityCredentialName string = 'aks-workload-identity'
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
-var apiWorkloadIdentityEnabled = startsWith(apiWorkloadIdentityIssuer, 'https://') && startsWith(apiWorkloadIdentitySubject, 'system:serviceaccount:')
+var apiWorkloadIdentitySubjectParts = split(apiWorkloadIdentitySubject, ':')
+var apiWorkloadIdentityHasValidIssuer = startsWith(apiWorkloadIdentityIssuer, 'https://') && length(apiWorkloadIdentityIssuer) > 8
+var apiWorkloadIdentityHasValidSubject = length(apiWorkloadIdentitySubjectParts) == 4 && apiWorkloadIdentitySubjectParts[0] == 'system' && apiWorkloadIdentitySubjectParts[1] == 'serviceaccount' && !empty(apiWorkloadIdentitySubjectParts[2]) && !empty(apiWorkloadIdentitySubjectParts[3])
+var apiWorkloadIdentityEnabled = apiWorkloadIdentityHasValidIssuer && apiWorkloadIdentityHasValidSubject
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {

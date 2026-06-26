@@ -104,6 +104,7 @@ If the API needs to exchange an AKS service account token for an Entra ID token,
 - `apiWorkloadIdentityCredentialName` — optional override for the federated credential name
 
 When these values are provided, the deployment creates a federated identity credential on the API managed identity and the `azd` post-deploy hook automatically validates that the deployed credential matches the expected issuer and subject.
+If that validation fails, `azd up` exits with an error so you can fix the workload identity binding before serving traffic; verify the issuer URL, the full `system:serviceaccount:<namespace>:<name>` subject, and the credential attached to the managed identity.
 
 ### 6. Ready for SRE Scenarios
 

@@ -24,11 +24,25 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     throw 'Azure CLI is required to validate federated identity credentials.'
 }
 
-$credential = az identity federated-credential show `
-    --resource-group $ResourceGroupName `
-    --identity-name $IdentityName `
-    --name $CredentialName `
-    --output json | ConvertFrom-Json
+$stderrFile = New-TemporaryFile
+
+try {
+    $credentialJson = az identity federated-credential show `
+        --resource-group $ResourceGroupName `
+        --identity-name $IdentityName `
+        --name $CredentialName `
+        --output json 2> $stderrFile
+
+    if ($LASTEXITCODE -ne 0) {
+        $cliError = Get-Content $stderrFile -Raw
+        throw "Failed to load federated credential '$CredentialName' for identity '$IdentityName' in resource group '$ResourceGroupName'. Azure CLI output: $cliError"
+    }
+
+    $credential = $credentialJson | ConvertFrom-Json
+}
+finally {
+    Remove-Item $stderrFile -ErrorAction SilentlyContinue
+}
 
 $errors = @()
 

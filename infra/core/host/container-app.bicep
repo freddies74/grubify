@@ -22,6 +22,11 @@ param workloadIdentityAudiences array = [
   'api://AzureADTokenExchange'
 ]
 
+var workloadIdentitySubjectParts = split(workloadIdentitySubject, ':')
+var workloadIdentityHasValidIssuer = startsWith(workloadIdentityIssuer, 'https://') && length(workloadIdentityIssuer) > 8
+var workloadIdentityHasValidSubject = length(workloadIdentitySubjectParts) == 4 && workloadIdentitySubjectParts[0] == 'system' && workloadIdentitySubjectParts[1] == 'serviceaccount' && !empty(workloadIdentitySubjectParts[2]) && !empty(workloadIdentitySubjectParts[3])
+var workloadIdentityConfigured = workloadIdentityEnabled && workloadIdentityHasValidIssuer && workloadIdentityHasValidSubject
+
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' existing = {
   name: containerAppsEnvironmentName
 }
@@ -38,7 +43,7 @@ resource userIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-
   }
 }
 
-resource federatedIdentityCredential 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = if (workloadIdentityEnabled) {
+resource federatedIdentityCredential 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = if (workloadIdentityConfigured) {
   name: workloadIdentityCredentialName
   parent: userIdentity
   properties: {
@@ -117,6 +122,6 @@ output fqdn string = containerApp.properties.configuration.ingress.fqdn
 output uri string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
 output identityId string = userIdentity.id
 output identityName string = userIdentity.name
-output workloadIdentityCredentialName string = workloadIdentityEnabled ? federatedIdentityCredential.name : ''
-output workloadIdentityIssuer string = workloadIdentityEnabled ? workloadIdentityIssuer : ''
-output workloadIdentitySubject string = workloadIdentityEnabled ? workloadIdentitySubject : ''
+output workloadIdentityCredentialName string = workloadIdentityConfigured ? workloadIdentityCredentialName : ''
+output workloadIdentityIssuer string = workloadIdentityConfigured ? workloadIdentityIssuer : ''
+output workloadIdentitySubject string = workloadIdentityConfigured ? workloadIdentitySubject : ''
