@@ -7,7 +7,7 @@ namespace GrubifyApi.Telemetry;
 /// <summary>
 /// Telemetry processor that discards internal managed-identity (MSI) token requests
 /// from Application Insights. These calls target the local MSI endpoint
-/// (e.g. http://localhost:&lt;port&gt;/msi/token) and are auth-bootstrap traffic, not
+/// (e.g. http://localhost:{port}/msi/token) and are auth-bootstrap traffic, not
 /// customer-facing requests. Without this filter a single slow token acquisition can
 /// push the average request duration above the user-latency SLO threshold and trigger
 /// a false-positive alert, as described in incident ai-Zava-xnfiyr.
