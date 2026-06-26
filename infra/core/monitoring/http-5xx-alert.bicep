@@ -29,9 +29,10 @@ resource http5xxAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
             AppRequests
             | where TimeGenerated >= ago(5m)
             | extend StatusCode = toint(ResultCode)
+            | extend UrlLower = tolower(tostring(Url))
             | where StatusCode >= 500 and StatusCode < 600
-            | where Url has '/api/' or Url has '/health' or Url has '/livez'
-            | where not(Url has '/vendor/phpunit' or Url has 'pearcmd' or Url has '/hello.world')
+            | where UrlLower has '/api/' or UrlLower has '/health' or UrlLower has '/livez'
+            | where not(UrlLower has '/vendor/phpunit' or UrlLower has 'pearcmd' or UrlLower has '/hello.world')
           '''
           timeAggregation: 'Count'
           operator: 'GreaterThan'

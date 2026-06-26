@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.44.1.10279",
-      "templateHash": "11478767986192539859"
+      "templateHash": "9736593166955909984"
     }
   },
   "parameters": {
@@ -53,7 +53,7 @@
         "criteria": {
           "allOf": [
             {
-              "query": "            AppRequests\n            | where TimeGenerated >= ago(5m)\n            | extend StatusCode = toint(ResultCode)\n            | where StatusCode >= 500 and StatusCode < 600\n            | where Url has '/api/' or Url has '/health' or Url has '/livez'\n            | where not(Url has '/vendor/phpunit' or Url has 'pearcmd' or Url has '/hello.world')\n          ",
+              "query": "            AppRequests\n            | where TimeGenerated >= ago(5m)\n            | extend StatusCode = toint(ResultCode)\n            | extend UrlLower = tolower(tostring(Url))\n            | where StatusCode >= 500 and StatusCode < 600\n            | where UrlLower has '/api/' or UrlLower has '/health' or UrlLower has '/livez'\n            | where not(UrlLower has '/vendor/phpunit' or UrlLower has 'pearcmd' or UrlLower has '/hello.world')\n          ",
               "timeAggregation": "Count",
               "operator": "GreaterThan",
               "threshold": "[parameters('threshold')]",
