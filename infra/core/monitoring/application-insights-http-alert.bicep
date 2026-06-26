@@ -46,7 +46,7 @@ resource http5xxAlert 'Microsoft.Insights/scheduledQueryRules@2022-06-15' = {
             AppRequests
             | where _ResourceId =~ '${applicationInsights.id}'
             | extend StatusCode = toint(ResultCode)
-            | extend RequestPath = tolower(coalesce(tostring(parse_url(Url).Path), Name))
+            | extend RequestPath = tolower(tostring(parse_url(Url).Path))
             | where StatusCode between (500 .. 599)
             | where RequestPath !contains '/.env'
             | where RequestPath !contains '.git-credentials'
