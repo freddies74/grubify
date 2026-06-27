@@ -21,6 +21,7 @@ param frontendImage string = ''
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
+var applicationInsightsName = '${abbrs.insightsComponents}${resourceToken}'
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -48,6 +49,17 @@ module containerAppsEnvironment 'core/host/container-apps-environment.bicep' = {
     name: '${abbrs.appManagedEnvironments}${resourceToken}'
     location: location
     tags: tags
+  }
+}
+
+module observability 'core/monitoring/observability.bicep' = {
+  name: 'observability'
+  scope: rg
+  params: {
+    name: applicationInsightsName
+    location: location
+    tags: tags
+    logAnalyticsWorkspaceId: containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
   }
 }
 
@@ -113,6 +125,8 @@ output RESOURCE_GROUP_ID string = rg.id
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.outputs.name
+output APPLICATION_INSIGHTS_NAME string = observability.outputs.applicationInsightsName
+output APPLICATION_INSIGHTS_ID string = observability.outputs.applicationInsightsId
 
 output API_BASE_URL string = 'https://${api.outputs.fqdn}'
 output FRONTEND_URL string = 'https://${frontend.outputs.fqdn}'
