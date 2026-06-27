@@ -105,6 +105,17 @@ module frontend 'core/host/container-app.bicep' = {
   }
 }
 
+module userFacingLatencyAlert 'core/monitoring/user-facing-latency-alert.bicep' = {
+  name: 'user-facing-latency-alert'
+  scope: rg
+  params: {
+    name: 'grubify-user-facing-api-latency'
+    location: location
+    tags: tags
+    workspaceId: containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
+  }
+}
+
 // App outputs
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
