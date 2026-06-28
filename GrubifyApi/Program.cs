@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.HttpOverrides;
+using GrubifyApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Register database health service for dependency availability checks
+builder.Services.AddSingleton<IDatabaseHealthService, DatabaseHealthService>();
 
 // Configure forwarded headers for Azure Container Apps
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
