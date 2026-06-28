@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using GrubifyApi.Models;
+using System.Collections.Immutable;
+using GrubifyApi.Services;
 
 namespace GrubifyApi.Controllers
 {
@@ -7,6 +9,13 @@ namespace GrubifyApi.Controllers
     [Route("api/[controller]")]
     public class FoodItemsController : ControllerBase
     {
+        private readonly ICategoryIndexService _categoryIndexService;
+
+        public FoodItemsController(ICategoryIndexService categoryIndexService)
+        {
+            _categoryIndexService = categoryIndexService;
+        }
+
         private static readonly List<FoodItem> FoodItems = new()
         {
             // Tony's Italian Bistro items
@@ -254,12 +263,13 @@ namespace GrubifyApi.Controllers
             return Ok(items);
         }
 
+        [ResponseCache(Duration = 60)]
         [HttpGet("category/{category}")]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
         {
-            var items = FoodItems.Where(f => 
-                f.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
-            return Ok(items);
+            // Use pre-built category index service for O(1) lookup
+            var items = _categoryIndexService.GetItemsByCategory(category);
+            return Ok(items ?? System.Collections.Immutable.ImmutableList<FoodItem>.Empty);
         }
 
         [HttpGet("search")]
