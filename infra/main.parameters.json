@@ -16,6 +16,15 @@
     },
     "frontendImage": {
       "value": "${SERVICE_FRONTEND_IMAGE_NAME}"
+    },
+    "postgresAdminLogin": {
+      "value": "${POSTGRES_ADMIN_LOGIN}"
+    },
+    "postgresAdminPassword": {
+      "value": "${POSTGRES_ADMIN_PASSWORD}"
+    },
+    "alertEmailAddress": {
+      "value": "${ALERT_EMAIL_ADDRESS}"
     }
   }
 }
