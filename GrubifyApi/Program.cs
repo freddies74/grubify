@@ -7,6 +7,14 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Add output caching to serve repeated read-heavy requests (category/product lists)
+// from the in-process cache, reducing backend processing under burst load.
+const int defaultCacheDurationSeconds = 60;
+builder.Services.AddOutputCache(options =>
+{
+    options.AddBasePolicy(policy => policy.Expire(TimeSpan.FromSeconds(defaultCacheDurationSeconds)));
+});
+
 // Configure forwarded headers for Azure Container Apps
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -65,6 +73,8 @@ if (app.Environment.IsDevelopment())
 
 // Use CORS
 app.UseCors("AllowReactApp");
+
+app.UseOutputCache();
 
 app.UseAuthorization();
 
