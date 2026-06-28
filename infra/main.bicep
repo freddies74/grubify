@@ -18,6 +18,13 @@ param apiImage string = ''
 @description('Frontend container image')
 param frontendImage string = ''
 
+@description('PostgreSQL administrator login name')
+param postgresAdminLogin string = 'grubifyadmin'
+
+@description('PostgreSQL administrator password')
+@secure()
+param postgresAdminPassword string
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
@@ -51,6 +58,19 @@ module containerAppsEnvironment 'core/host/container-apps-environment.bicep' = {
   }
 }
 
+// PostgreSQL Flexible Server with enhanced activity and autovacuum diagnostics enabled
+module postgres 'core/database/postgresql-flexible.bicep' = {
+  name: 'postgres'
+  scope: rg
+  params: {
+    name: '${abbrs.dBforPostgreSQLServers}${resourceToken}'
+    location: location
+    tags: tags
+    administratorLogin: postgresAdminLogin
+    administratorLoginPassword: postgresAdminPassword
+  }
+}
+
 // Container app for the API
 module api 'core/host/container-app.bicep' = {
   name: 'api'
@@ -67,6 +87,12 @@ module api 'core/host/container-app.bicep' = {
     external: true
     minReplicas: 1  // Always keep 1 instance running
     maxReplicas: 1  // No autoscaling - single instance only
+    secrets: [
+      {
+        name: 'postgres-connection-string'
+        value: 'Host=${postgres.outputs.fqdn};Database=grubify;Username=${postgresAdminLogin};Password=${postgresAdminPassword};SslMode=Require'
+      }
+    ]
     env: [
       {
         name: 'ASPNETCORE_ENVIRONMENT'
@@ -75,6 +101,10 @@ module api 'core/host/container-app.bicep' = {
       {
         name: 'AllowedOrigins__0'
         value: 'https://ca-grubify-frontend.${containerAppsEnvironment.outputs.defaultDomain}'
+      }
+      {
+        name: 'ConnectionStrings__DefaultConnection'
+        secretRef: 'postgres-connection-string'
       }
     ]
   }

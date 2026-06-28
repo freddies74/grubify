@@ -38,6 +38,9 @@ dist/
 .azure/
 *.azurepubxml
 
+# Bicep compiled output (build artifacts)
+infra/main.json
+
 # Docker
 .dockerignore
 

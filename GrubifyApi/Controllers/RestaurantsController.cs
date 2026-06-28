@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using GrubifyApi.Models;
 
 namespace GrubifyApi.Controllers
@@ -7,6 +8,7 @@ namespace GrubifyApi.Controllers
     [Route("api/[controller]")]
     public class RestaurantsController : ControllerBase
     {
+        private const int CacheDurationSeconds = 60;
         private static readonly List<Restaurant> Restaurants = new()
         {
             new Restaurant
@@ -82,12 +84,14 @@ namespace GrubifyApi.Controllers
         };
 
         [HttpGet]
+        [OutputCache(Duration = CacheDurationSeconds)]
         public ActionResult<IEnumerable<Restaurant>> GetRestaurants()
         {
             return Ok(Restaurants);
         }
 
         [HttpGet("{id}")]
+        [OutputCache(Duration = CacheDurationSeconds, VaryByRouteValueNames = new[] { "id" })]
         public ActionResult<Restaurant> GetRestaurant(int id)
         {
             var restaurant = Restaurants.FirstOrDefault(r => r.Id == id);
@@ -99,6 +103,7 @@ namespace GrubifyApi.Controllers
         }
 
         [HttpGet("cuisine/{cuisineType}")]
+        [OutputCache(Duration = CacheDurationSeconds, VaryByRouteValueNames = new[] { "cuisineType" })]
         public ActionResult<IEnumerable<Restaurant>> GetRestaurantsByCuisine(string cuisineType)
         {
             var restaurants = Restaurants.Where(r => 
@@ -107,6 +112,7 @@ namespace GrubifyApi.Controllers
         }
 
         [HttpGet("search")]
+        [OutputCache(Duration = CacheDurationSeconds, VaryByQueryKeys = new[] { "query" })]
         public ActionResult<IEnumerable<Restaurant>> SearchRestaurants([FromQuery] string query)
         {
             if (string.IsNullOrEmpty(query))

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using GrubifyApi.Models;
 
 namespace GrubifyApi.Controllers
@@ -7,6 +8,7 @@ namespace GrubifyApi.Controllers
     [Route("api/[controller]")]
     public class FoodItemsController : ControllerBase
     {
+        private const int CacheDurationSeconds = 60;
         private static readonly List<FoodItem> FoodItems = new()
         {
             // Tony's Italian Bistro items
@@ -230,13 +232,27 @@ namespace GrubifyApi.Controllers
             }
         };
 
+        // Pre-built index for O(1) category lookups, avoiding full-list scans under load
+        private static readonly Dictionary<string, List<FoodItem>> CategoryIndex =
+            FoodItems
+                .GroupBy(f => f.Category, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        // Pre-built index for O(1) restaurant lookups
+        private static readonly Dictionary<int, List<FoodItem>> RestaurantIndex =
+            FoodItems
+                .GroupBy(f => f.RestaurantId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
         [HttpGet]
+        [OutputCache(Duration = CacheDurationSeconds)]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItems()
         {
             return Ok(FoodItems);
         }
 
         [HttpGet("{id}")]
+        [OutputCache(Duration = CacheDurationSeconds, VaryByRouteValueNames = new[] { "id" })]
         public ActionResult<FoodItem> GetFoodItem(int id)
         {
             var foodItem = FoodItems.FirstOrDefault(f => f.Id == id);
@@ -248,21 +264,29 @@ namespace GrubifyApi.Controllers
         }
 
         [HttpGet("restaurant/{restaurantId}")]
+        [OutputCache(Duration = CacheDurationSeconds, VaryByRouteValueNames = new[] { "restaurantId" })]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByRestaurant(int restaurantId)
         {
-            var items = FoodItems.Where(f => f.RestaurantId == restaurantId).ToList();
+            if (!RestaurantIndex.TryGetValue(restaurantId, out var items))
+            {
+                return Ok(Enumerable.Empty<FoodItem>());
+            }
             return Ok(items);
         }
 
         [HttpGet("category/{category}")]
+        [OutputCache(Duration = CacheDurationSeconds, VaryByRouteValueNames = new[] { "category" })]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
         {
-            var items = FoodItems.Where(f => 
-                f.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!CategoryIndex.TryGetValue(category, out var items))
+            {
+                return Ok(Enumerable.Empty<FoodItem>());
+            }
             return Ok(items);
         }
 
         [HttpGet("search")]
+        [OutputCache(Duration = CacheDurationSeconds, VaryByQueryKeys = new[] { "query" })]
         public ActionResult<IEnumerable<FoodItem>> SearchFoodItems([FromQuery] string query)
         {
             if (string.IsNullOrEmpty(query))
@@ -279,6 +303,9 @@ namespace GrubifyApi.Controllers
         }
 
         [HttpGet("dietary")]
+        [OutputCache(
+            Duration = CacheDurationSeconds,
+            VaryByQueryKeys = new[] { "isVegetarian", "isVegan", "isSpicy" })]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByDietaryPreference(
             [FromQuery] bool? isVegetarian = null,
             [FromQuery] bool? isVegan = null,

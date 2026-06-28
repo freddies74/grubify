@@ -14,6 +14,7 @@ param minReplicas int = 1
 param maxReplicas int = 3
 param env array = []
 param activeRevisionsMode string = 'Single'
+param secrets array = []
 
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' existing = {
   name: containerAppsEnvironmentName
@@ -55,6 +56,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
     managedEnvironmentId: containerAppsEnvironment.id
     configuration: {
       activeRevisionsMode: activeRevisionsMode
+      secrets: secrets
       ingress: {
         external: external
         targetPort: targetPort
