@@ -30,7 +30,7 @@ namespace GrubifyApi.Services
         private static Dictionary<string, ImmutableList<FoodItem>> BuildCategoryIndex(IEnumerable<FoodItem> foodItems)
         {
             var index = new Dictionary<string, ImmutableList<FoodItem>>(StringComparer.OrdinalIgnoreCase);
-            var builder = new Dictionary<string, List<FoodItem>>();
+            var builder = new Dictionary<string, List<FoodItem>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var item in foodItems)
             {

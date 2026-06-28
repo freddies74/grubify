@@ -16,6 +16,7 @@ builder.Services.AddResponseCaching();
 // Register CategoryIndexService with food items for O(1) category lookups
 // This is initialized at startup to optimize cold-start performance
 var foodItems = GetFoodItems();
+builder.Services.AddSingleton<IFoodItemProvider>(new FoodItemProvider(foodItems));
 builder.Services.AddSingleton<ICategoryIndexService>(new CategoryIndexService(foodItems));
 
 // Register ApplicationLifetimeService to track startup time
