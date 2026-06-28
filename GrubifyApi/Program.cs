@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.HttpOverrides;
+using GrubifyApi.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Add response caching for category endpoints (60 seconds)
+builder.Services.AddResponseCaching();
 
 // Configure forwarded headers for Azure Container Apps
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -53,6 +57,12 @@ var app = builder.Build();
 
 // Use forwarded headers for Azure Container Apps
 app.UseForwardedHeaders();
+
+// Add response caching middleware
+app.UseResponseCaching();
+
+// Add latency logging middleware for telemetry
+app.UseLatencyLogging();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

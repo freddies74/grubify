@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using GrubifyApi.Models;
+using System.Collections.Immutable;
 
 namespace GrubifyApi.Controllers
 {
@@ -230,6 +231,31 @@ namespace GrubifyApi.Controllers
             }
         };
 
+        // Pre-built category index for O(1) lookups (cold-start optimization)
+        private static readonly Dictionary<string, ImmutableList<FoodItem>> CategoryIndex = BuildCategoryIndex();
+
+        private static Dictionary<string, ImmutableList<FoodItem>> BuildCategoryIndex()
+        {
+            var index = new Dictionary<string, ImmutableList<FoodItem>>(StringComparer.OrdinalIgnoreCase);
+            var builder = new Dictionary<string, List<FoodItem>>();
+            
+            foreach (var item in FoodItems)
+            {
+                if (!builder.ContainsKey(item.Category))
+                {
+                    builder[item.Category] = new List<FoodItem>();
+                }
+                builder[item.Category].Add(item);
+            }
+            
+            // Convert to immutable lists to prevent accidental modifications
+            foreach (var kvp in builder)
+            {
+                index[kvp.Key] = kvp.Value.ToImmutableList();
+            }
+            return index;
+        }
+
         [HttpGet]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItems()
         {
@@ -254,12 +280,16 @@ namespace GrubifyApi.Controllers
             return Ok(items);
         }
 
+        [ResponseCache(Duration = 60, VaryByHeader = "Accept")]
         [HttpGet("category/{category}")]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
         {
-            var items = FoodItems.Where(f => 
-                f.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
-            return Ok(items);
+            // Use pre-built category index for O(1) lookup instead of LINQ query
+            if (CategoryIndex.TryGetValue(category, out var items))
+            {
+                return Ok(items);
+            }
+            return Ok(new List<FoodItem>());
         }
 
         [HttpGet("search")]
