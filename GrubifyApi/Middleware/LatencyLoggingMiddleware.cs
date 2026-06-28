@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace GrubifyApi.Middleware
 {
     /// <summary>
@@ -8,6 +10,8 @@ namespace GrubifyApi.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<LatencyLoggingMiddleware> _logger;
+        // Regex pattern to allow only safe characters in log output (alphanumeric, spaces, common URL chars)
+        private static readonly Regex SafePathPattern = new(@"^[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=]+$", RegexOptions.Compiled);
 
         public LatencyLoggingMiddleware(RequestDelegate next, ILogger<LatencyLoggingMiddleware> logger)
         {
@@ -30,8 +34,9 @@ namespace GrubifyApi.Middleware
             var statusCode = context.Response.StatusCode;
             var elapsedMs = stopwatch.ElapsedMilliseconds;
 
-            // Sanitize path to prevent log forging attacks
-            var sanitizedPath = SanitizePath(path);
+            // Validate path is safe for logging
+            var isPathSafe = SafePathPattern.IsMatch(path);
+            var displayPath = isPathSafe ? path : "[UNSAFE_PATH]";
 
             // Log at appropriate level based on latency
             if (path.Contains("/category/", StringComparison.OrdinalIgnoreCase))
@@ -40,33 +45,27 @@ namespace GrubifyApi.Middleware
                 {
                     _logger.LogWarning(
                         "Slow category query - Method: {Method}, Path: {Path}, Status: {StatusCode}, Latency: {LatencyMs}ms",
-                        method, sanitizedPath, statusCode, elapsedMs);
+                        method, displayPath, statusCode, elapsedMs);
                 }
                 else if (elapsedMs > 100)
                 {
                     _logger.LogInformation(
                         "Category query - Method: {Method}, Path: {Path}, Status: {StatusCode}, Latency: {LatencyMs}ms",
-                        method, sanitizedPath, statusCode, elapsedMs);
+                        method, displayPath, statusCode, elapsedMs);
                 }
                 else
                 {
                     _logger.LogDebug(
                         "Fast category query - Method: {Method}, Path: {Path}, Status: {StatusCode}, Latency: {LatencyMs}ms",
-                        method, sanitizedPath, statusCode, elapsedMs);
+                        method, displayPath, statusCode, elapsedMs);
                 }
             }
             else
             {
                 _logger.LogDebug(
                     "Request - Method: {Method}, Path: {Path}, Status: {StatusCode}, Latency: {LatencyMs}ms",
-                    method, sanitizedPath, statusCode, elapsedMs);
+                    method, displayPath, statusCode, elapsedMs);
             }
-        }
-
-        private static string SanitizePath(string path)
-        {
-            // Replace control characters and newlines to prevent log injection
-            return path.Replace("\r", "").Replace("\n", "").Replace("\t", " ");
         }
     }
 

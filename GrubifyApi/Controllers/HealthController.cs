@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using GrubifyApi.Services;
 
 namespace GrubifyApi.Controllers
 {
@@ -6,7 +7,12 @@ namespace GrubifyApi.Controllers
     [Route("health")]
     public class HealthController : ControllerBase
     {
-        private static DateTime StartTime { get; } = DateTime.UtcNow;
+        private readonly IApplicationLifetimeService _lifetimeService;
+
+        public HealthController(IApplicationLifetimeService lifetimeService)
+        {
+            _lifetimeService = lifetimeService;
+        }
 
         /// <summary>
         /// Liveness probe - indicates if the pod is running and should stay running.
@@ -19,7 +25,7 @@ namespace GrubifyApi.Controllers
             {
                 Status = "alive",
                 Timestamp = DateTime.UtcNow,
-                Uptime = DateTime.UtcNow - StartTime
+                Uptime = _lifetimeService.Uptime
             });
         }
 
@@ -41,7 +47,7 @@ namespace GrubifyApi.Controllers
             {
                 Status = "ready",
                 Timestamp = DateTime.UtcNow,
-                Uptime = DateTime.UtcNow - StartTime
+                Uptime = _lifetimeService.Uptime
                 // Dependencies field omitted until actual checks are implemented to prevent false positives
             };
             return Ok(response);

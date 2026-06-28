@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using GrubifyApi.Models;
 using System.Collections.Immutable;
+using GrubifyApi.Services;
 
 namespace GrubifyApi.Controllers
 {
@@ -8,6 +9,13 @@ namespace GrubifyApi.Controllers
     [Route("api/[controller]")]
     public class FoodItemsController : ControllerBase
     {
+        private readonly ICategoryIndexService _categoryIndexService;
+
+        public FoodItemsController(ICategoryIndexService categoryIndexService)
+        {
+            _categoryIndexService = categoryIndexService;
+        }
+
         private static readonly List<FoodItem> FoodItems = new()
         {
             // Tony's Italian Bistro items
@@ -231,31 +239,6 @@ namespace GrubifyApi.Controllers
             }
         };
 
-        // Pre-built category index for O(1) lookups (cold-start optimization)
-        private static readonly Dictionary<string, ImmutableList<FoodItem>> CategoryIndex = BuildCategoryIndex();
-
-        private static Dictionary<string, ImmutableList<FoodItem>> BuildCategoryIndex()
-        {
-            var index = new Dictionary<string, ImmutableList<FoodItem>>(StringComparer.OrdinalIgnoreCase);
-            var builder = new Dictionary<string, List<FoodItem>>();
-            
-            foreach (var item in FoodItems)
-            {
-                if (!builder.ContainsKey(item.Category))
-                {
-                    builder[item.Category] = new List<FoodItem>();
-                }
-                builder[item.Category].Add(item);
-            }
-            
-            // Convert to immutable lists to prevent accidental modifications
-            foreach (var kvp in builder)
-            {
-                index[kvp.Key] = kvp.Value.ToImmutableList();
-            }
-            return index;
-        }
-
         [HttpGet]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItems()
         {
@@ -280,16 +263,13 @@ namespace GrubifyApi.Controllers
             return Ok(items);
         }
 
-        [ResponseCache(Duration = 60, VaryByHeader = "Accept")]
+        [ResponseCache(Duration = 60)]
         [HttpGet("category/{category}")]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
         {
-            // Use pre-built category index for O(1) lookup instead of LINQ query
-            if (CategoryIndex.TryGetValue(category, out var items))
-            {
-                return Ok(items);
-            }
-            return Ok(new List<FoodItem>());
+            // Use pre-built category index service for O(1) lookup
+            var items = _categoryIndexService.GetItemsByCategory(category);
+            return Ok(items ?? System.Collections.Immutable.ImmutableList<FoodItem>.Empty);
         }
 
         [HttpGet("search")]
