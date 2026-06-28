@@ -18,6 +18,16 @@ param apiImage string = ''
 @description('Frontend container image')
 param frontendImage string = ''
 
+@description('PostgreSQL administrator login name')
+param postgresAdminLogin string = 'grubifyadmin'
+
+@description('PostgreSQL administrator login password')
+@secure()
+param postgresAdminPassword string = ''
+
+@description('Email address to receive PostgreSQL stop alert notifications')
+param alertEmailAddress string = ''
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
@@ -105,6 +115,41 @@ module frontend 'core/host/container-app.bicep' = {
   }
 }
 
+// PostgreSQL flexible server
+module postgresServer 'core/database/postgres-flexible-server.bicep' = if (!empty(postgresAdminPassword)) {
+  name: 'postgres-server'
+  scope: rg
+  params: {
+    name: '${abbrs.dBforPostgreSQLServers}${resourceToken}'
+    location: location
+    tags: tags
+    administratorLogin: postgresAdminLogin
+    administratorLoginPassword: postgresAdminPassword
+  }
+}
+
+// Custom RBAC role: PostgreSQL Operator (No Stop/Start)
+// Assign this role to operators/service principals instead of Contributor to prevent
+// accidental or unauthorised stop operations on production PostgreSQL servers.
+module postgresOperatorRole 'core/security/postgres-operator-role.bicep' = {
+  name: 'postgres-operator-role'
+}
+
+// Activity Log Alert: fires when any PostgreSQL flexible server in the subscription
+// is stopped via the control-plane stop/action operation.
+// The alert payload includes caller identity, correlationId, resourceId, and
+// eventTimestamp so on-call engineers can triage without additional portal queries.
+module postgresStopAlert 'core/security/postgres-stop-alert.bicep' = {
+  name: 'postgres-stop-alert'
+  scope: rg
+  params: {
+    name: 'postgres-server-stopped'
+    targetResourceGroupName: rg.name
+    alertEmailAddress: alertEmailAddress
+    tags: tags
+  }
+}
+
 // App outputs
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
@@ -116,3 +161,5 @@ output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.outputs.name
 
 output API_BASE_URL string = 'https://${api.outputs.fqdn}'
 output FRONTEND_URL string = 'https://${frontend.outputs.fqdn}'
+
+output POSTGRES_OPERATOR_ROLE_ID string = postgresOperatorRole.outputs.roleDefinitionId
