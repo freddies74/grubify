@@ -18,6 +18,18 @@ param apiImage string = ''
 @description('Frontend container image')
 param frontendImage string = ''
 
+@description('Resource IDs of action groups notified by the HTTP 5xx alert.')
+param http5xxAlertActionGroupResourceIds array = []
+
+@description('Minimum total requests in the evaluation window before the HTTP 5xx alert can fire.')
+param http5xxAlertMinRequestCount int = 100
+
+@description('Minimum HTTP 5xx responses in the evaluation window before the HTTP 5xx alert can fire.')
+param http5xxAlertMinServerErrorCount int = 5
+
+@description('Minimum HTTP 5xx error rate percentage in the evaluation window before the HTTP 5xx alert can fire.')
+param http5xxAlertMinErrorRatePercent int = 5
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
@@ -76,6 +88,10 @@ module api 'core/host/container-app.bicep' = {
         name: 'AllowedOrigins__0'
         value: 'https://ca-grubify-frontend.${containerAppsEnvironment.outputs.defaultDomain}'
       }
+      {
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: containerAppsEnvironment.outputs.applicationInsightsConnectionString
+      }
     ]
   }
 }
@@ -102,6 +118,23 @@ module frontend 'core/host/container-app.bicep' = {
         value: 'https://${api.outputs.fqdn}/api'
       }
     ]
+  }
+}
+
+module http5xxAlert 'core/monitor/http-5xx-alert.bicep' = {
+  name: 'http-5xx-alert'
+  scope: rg
+  params: {
+    name: '${resourceToken}-http-5xx-errors'
+    location: location
+    tags: tags
+    scopes: [
+      containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
+    ]
+    actionGroupResourceIds: http5xxAlertActionGroupResourceIds
+    minRequestCount: http5xxAlertMinRequestCount
+    minServerErrorCount: http5xxAlertMinServerErrorCount
+    minErrorRatePercent: http5xxAlertMinErrorRatePercent
   }
 }
 
