@@ -233,8 +233,17 @@ namespace GrubifyApi.Controllers
 
         private static readonly FrozenDictionary<string, FoodItem[]> FoodItemsByCategory =
             FoodItems
-                .GroupBy(foodItem => foodItem.Category.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToFrozenDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+                .Select(foodItem => new
+                {
+                    Item = foodItem,
+                    CategoryKey = NormalizeCategory(foodItem.Category)
+                })
+                .Where(entry => entry.CategoryKey.Length > 0)
+                .GroupBy(entry => entry.CategoryKey, StringComparer.OrdinalIgnoreCase)
+                .ToFrozenDictionary(
+                    group => group.Key,
+                    group => group.Select(entry => entry.Item).ToArray(),
+                    StringComparer.OrdinalIgnoreCase);
 
         [HttpGet]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItems()
@@ -263,12 +272,13 @@ namespace GrubifyApi.Controllers
         [HttpGet("category/{category}")]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
         {
-            if (string.IsNullOrWhiteSpace(category))
+            var normalizedCategory = NormalizeCategory(category);
+            if (normalizedCategory.Length == 0)
             {
                 return Ok(Array.Empty<FoodItem>());
             }
 
-            return Ok(FoodItemsByCategory.GetValueOrDefault(category.Trim(), Array.Empty<FoodItem>()));
+            return Ok(FoodItemsByCategory.GetValueOrDefault(normalizedCategory, Array.Empty<FoodItem>()));
         }
 
         [HttpGet("search")]
@@ -306,5 +316,8 @@ namespace GrubifyApi.Controllers
 
             return Ok(items.ToList());
         }
+
+        private static string NormalizeCategory(string? category) =>
+            string.IsNullOrWhiteSpace(category) ? string.Empty : category.Trim();
     }
 }
