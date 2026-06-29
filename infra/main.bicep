@@ -18,6 +18,22 @@ param apiImage string = ''
 @description('Frontend container image')
 param frontendImage string = ''
 
+@description('Enable HTTP 5xx scheduled query alert')
+param enableHttp5xxAlert bool = true
+
+@description('HTTP 5xx alert minimum failed request count in the evaluation window')
+@minValue(1)
+param http5xxMinFailedCount int = 5
+
+@description('HTTP 5xx alert minimum total request volume in the evaluation window')
+@minValue(1)
+param http5xxMinRequestVolume int = 100
+
+@description('HTTP 5xx alert minimum error rate percentage in the evaluation window')
+@minValue(1)
+@maxValue(100)
+param http5xxMinErrorRatePercent int = 5
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
@@ -102,6 +118,20 @@ module frontend 'core/host/container-app.bicep' = {
         value: 'https://${api.outputs.fqdn}/api'
       }
     ]
+  }
+}
+
+module http5xxAlert 'core/monitoring/http-5xx-alert.bicep' = if (enableHttp5xxAlert) {
+  name: 'http-5xx-alert'
+  scope: rg
+  params: {
+    name: 'alert-${resourceToken}-http-5xx-errors'
+    location: location
+    tags: tags
+    workspaceResourceId: containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
+    min5xxCount: http5xxMinFailedCount
+    minRequestVolume: http5xxMinRequestVolume
+    minErrorRatePercent: http5xxMinErrorRatePercent
   }
 }
 
