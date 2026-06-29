@@ -3,10 +3,13 @@ param location string
 param tags object = {}
 param workspaceResourceId string
 param enabled bool = true
+@description('Alert severity (Azure scale): 0=Critical, 1=Error, 2=Warning, 3=Informational, 4=Verbose')
 @minValue(0)
 @maxValue(4)
 param severity int = 2
+@description('How often to evaluate the alert query (ISO 8601 duration, for example PT1M = every 1 minute)')
 param evaluationFrequency string = 'PT1M'
+@description('Lookback window used by each evaluation (ISO 8601 duration, for example PT5M = 5 minutes)')
 param windowSize string = 'PT5M'
 @minValue(1)
 param min5xxCount int = 5

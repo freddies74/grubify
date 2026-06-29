@@ -9,9 +9,9 @@ union isfuzzy=true
     requests
     | project resultCode = tostring(resultCode)
 )
-| summarize TotalRequests = count(), FiveXXCount = countif(resultCode startswith "5")
-| extend ErrorRate = iif(TotalRequests == 0, 0.0, todouble(FiveXXCount) / todouble(TotalRequests))
-| where FiveXXCount >= __MIN_5XX_COUNT__
+| summarize TotalRequests = count(), Http5xxCount = countif(resultCode startswith "5")
+| extend ErrorRate = iif(TotalRequests == 0, 0.0, todouble(Http5xxCount) / todouble(TotalRequests))
+| where Http5xxCount >= __MIN_5XX_COUNT__
 | where TotalRequests >= MinRequests
 | where ErrorRate >= MinErrorRate
 | project AlertHit = 1
