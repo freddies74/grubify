@@ -7,7 +7,7 @@ namespace GrubifyApi.Controllers
     [Route("api/[controller]")]
     public class FoodItemsController : ControllerBase
     {
-        private static readonly List<FoodItem> FoodItems = new()
+        private static readonly FoodItem[] FoodItems = new FoodItem[]
         {
             // Tony's Italian Bistro items
             new FoodItem
@@ -230,6 +230,10 @@ namespace GrubifyApi.Controllers
             }
         };
 
+        private static readonly Dictionary<string, FoodItem[]> FoodItemsByCategory = FoodItems
+            .GroupBy(foodItem => foodItem.Category, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+
         [HttpGet]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItems()
         {
@@ -257,9 +261,17 @@ namespace GrubifyApi.Controllers
         [HttpGet("category/{category}")]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
         {
-            var items = FoodItems.Where(f => 
-                f.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
-            return Ok(items);
+            if (string.IsNullOrWhiteSpace(category))
+            {
+                return Ok(Array.Empty<FoodItem>());
+            }
+
+            var normalizedCategory = category.Trim();
+
+            return Ok(
+                FoodItemsByCategory.TryGetValue(normalizedCategory, out var items)
+                    ? items
+                    : Array.Empty<FoodItem>());
         }
 
         [HttpGet("search")]
