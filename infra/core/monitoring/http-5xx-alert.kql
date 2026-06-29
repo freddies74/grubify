@@ -1,5 +1,5 @@
 let MinRequests = __MIN_REQUEST_VOLUME__;
-let MinErrorRate = todouble(__MIN_ERROR_RATE_PERCENT__) / 100.0;
+let MinErrorRateThreshold = todouble(__MIN_ERROR_RATE_PERCENT__) / 100.0;
 union isfuzzy=true
 (
     AppRequests
@@ -13,5 +13,5 @@ union isfuzzy=true
 | extend ErrorRate = iif(TotalRequests == 0, 0.0, todouble(Http5xxCount) / todouble(TotalRequests))
 | where Http5xxCount >= __MIN_5XX_COUNT__
 | where TotalRequests >= MinRequests
-| where ErrorRate >= MinErrorRate
+| where ErrorRate >= MinErrorRateThreshold
 | project AlertHit = 1

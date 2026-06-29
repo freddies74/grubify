@@ -3,7 +3,7 @@ param location string
 param tags object = {}
 param workspaceResourceId string
 param enabled bool = true
-@description('Alert severity (Azure scale): 0=Critical, 1=Error, 2=Warning, 3=Informational, 4=Verbose')
+@description('Alert severity (Azure Monitor levels): 0=Critical, 1=Error, 2=Warning, 3=Informational, 4=Verbose')
 @minValue(0)
 @maxValue(4)
 param severity int = 2
