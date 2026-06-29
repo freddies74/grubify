@@ -18,6 +18,13 @@ param apiImage string = ''
 @description('Frontend container image')
 param frontendImage string = ''
 
+@description('Email address for PostgreSQL control-plane alert notifications. Leave empty to skip alert deployment.')
+param alertEmailAddress string = ''
+
+@description('Policy effect for the PostgreSQL Flexible Server owner-tag governance policy. Use Deny to block untagged servers at creation, Audit to log only.')
+@allowed(['Deny', 'Audit', 'Disabled'])
+param postgresqlPolicyEffect string = 'Audit'
+
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = 'grubify'  // Fixed naming instead of random string
 var tags = { 'azd-env-name': environmentName }
@@ -102,6 +109,29 @@ module frontend 'core/host/container-app.bicep' = {
         value: 'https://${api.outputs.fqdn}/api'
       }
     ]
+  }
+}
+
+// PostgreSQL stop/start deny policy (subscription-scoped)
+// Blocks or audits control-plane stop/start actions to prevent user-initiated outages.
+module postgresqlStopStartPolicy 'core/security/postgresql-stop-start-policy.bicep' = {
+  name: 'postgresql-stop-start-policy'
+  params: {
+    policyEffect: postgresqlPolicyEffect
+    environmentName: environmentName
+  }
+}
+
+// Activity Log alerts for PostgreSQL stop/start actions
+// Fires immediately when a stop or start action is accepted on any PostgreSQL
+// flexible server in the subscription, paging the alert email with actor identity.
+module postgresqlActivityAlerts 'core/monitoring/postgresql-activity-alerts.bicep' = if (!empty(alertEmailAddress)) {
+  name: 'postgresql-activity-alerts'
+  scope: rg
+  params: {
+    tags: tags
+    alertEmailAddress: alertEmailAddress
+    resourceToken: resourceToken
   }
 }
 
