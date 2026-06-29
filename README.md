@@ -109,3 +109,10 @@ Now you have:
 5. **Simulate memory leak** using the deployed application endpoints
 6. **Create incident in Service Now** to trigger SRE agent response
 
+### PostgreSQL stopped-state incident triage
+
+When alerts such as `postgres-network-blocked` fire, verify PostgreSQL server state before treating it as a pure network-path issue:
+
+1. Check recent control-plane activity (`Microsoft.DBforPostgreSQL/flexibleServers/stop/action` and `start/action`) for the server.
+2. Correlate alert timestamps with PostgreSQL Resource Health and connectivity checks.
+3. If Resource Health reports **stopped/degraded**, route incident handling to database availability and operator/RBAC review first, then firewall/network remediation second.
