@@ -8,9 +8,10 @@ param minServerErrorCount int = 5
 param minErrorRatePercent int = 5
 
 var query = format(
-  'requests\n| where timestamp >= ago(5m)\n| summarize TotalRequests = count(), ServerErrors = countif(toint(resultCode) between (500 .. 599))\n| extend ErrorRatePercent = iff(TotalRequests == 0, 0.0, todouble(ServerErrors) * 100.0 / todouble(TotalRequests))\n| where TotalRequests >= {0}\n| where ErrorRatePercent >= {1}\n| project AggregatedValue = ServerErrors',
+  'requests\n| where timestamp >= ago(5m)\n| summarize TotalRequests = count(), ServerErrors = countif(toint(resultCode) between (500 .. 599))\n| extend ErrorRatePercent = iff(TotalRequests == 0, 0.0, todouble(ServerErrors) * 100.0 / todouble(TotalRequests))\n| where TotalRequests >= {0}\n| where ErrorRatePercent >= {1}\n| where ServerErrors >= {2}\n| project AggregatedValue = ServerErrors',
   minRequestCount,
-  minErrorRatePercent
+  minErrorRatePercent,
+  minServerErrorCount
 )
 
 resource http5xxAlert 'Microsoft.Insights/scheduledQueryRules@2021-08-01' = {
