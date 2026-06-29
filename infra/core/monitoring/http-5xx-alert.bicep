@@ -16,7 +16,16 @@ param minRequestVolume int = 100
 @maxValue(100)
 param minErrorRatePercent int = 5
 
-var http5xxAlertQuery = format('let MinRequests = {0};\nlet MinErrorRate = todouble({1}) / 100.0;\nunion isfuzzy=true\n(\n    AppRequests\n    | project resultCode = tostring(ResultCode)\n),\n(\n    requests\n    | project resultCode = tostring(resultCode)\n)\n| summarize TotalRequests = count(), FiveXxCount = countif(resultCode startswith "5")\n| extend ErrorRate = iif(TotalRequests == 0, 0.0, todouble(FiveXxCount) / todouble(TotalRequests))\n| where FiveXxCount >= {2}\n| where TotalRequests >= MinRequests\n| where ErrorRate >= MinErrorRate\n| project AlertHit = 1', minRequestVolume, minErrorRatePercent, min5xxCount)
+var http5xxAlertQueryTemplate = loadTextContent('http-5xx-alert.kql')
+var http5xxAlertQuery = replace(
+  replace(
+    replace(http5xxAlertQueryTemplate, '__MIN_REQUEST_VOLUME__', string(minRequestVolume)),
+    '__MIN_ERROR_RATE_PERCENT__',
+    string(minErrorRatePercent)
+  ),
+  '__MIN_5XX_COUNT__',
+  string(min5xxCount)
+)
 
 resource http5xxAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
   name: name

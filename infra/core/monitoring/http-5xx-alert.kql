@@ -1,0 +1,17 @@
+let MinRequests = __MIN_REQUEST_VOLUME__;
+let MinErrorRate = todouble(__MIN_ERROR_RATE_PERCENT__) / 100.0;
+union isfuzzy=true
+(
+    AppRequests
+    | project resultCode = tostring(ResultCode)
+),
+(
+    requests
+    | project resultCode = tostring(resultCode)
+)
+| summarize TotalRequests = count(), FiveXxCount = countif(resultCode startswith "5")
+| extend ErrorRate = iif(TotalRequests == 0, 0.0, todouble(FiveXxCount) / todouble(TotalRequests))
+| where FiveXxCount >= __MIN_5XX_COUNT__
+| where TotalRequests >= MinRequests
+| where ErrorRate >= MinErrorRate
+| project AlertHit = 1
