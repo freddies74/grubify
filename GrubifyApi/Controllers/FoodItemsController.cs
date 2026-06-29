@@ -233,7 +233,7 @@ namespace GrubifyApi.Controllers
 
         private static readonly FrozenDictionary<string, FoodItem[]> FoodItemsByCategory =
             FoodItems
-                .GroupBy(foodItem => foodItem.Category, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(foodItem => foodItem.Category.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToFrozenDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
 
         [HttpGet]
