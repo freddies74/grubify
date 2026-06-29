@@ -17,6 +17,18 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
   })
 }
 
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: '${name}-appi'
+  location: location
+  kind: 'web'
+  tags: tags
+  properties: {
+    Application_Type: 'web'
+    IngestionMode: 'LogAnalytics'
+    WorkspaceResourceId: logAnalyticsWorkspace.id
+  }
+}
+
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' = {
   name: name
   location: location
@@ -35,3 +47,5 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
 output id string = containerAppsEnvironment.id
 output name string = containerAppsEnvironment.name
 output defaultDomain string = containerAppsEnvironment.properties.defaultDomain
+output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.id
+output applicationInsightsConnectionString string = applicationInsights.properties.ConnectionString

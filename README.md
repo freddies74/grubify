@@ -93,6 +93,8 @@ This creates:
 - **API Container App**: `ca-grubify-api`
 - **Frontend Container App**: `ca-grubify-frontend`
 - **Log Analytics Workspace**: `log-grubify`
+- **Application Insights**: `cae-grubify-appi`
+- **HTTP 5xx alert**: `grubify-http-5xx-errors` (fires only for true `500-599` responses when both request volume and error rate cross the configured thresholds)
 
 ### 6. Ready for SRE Scenarios
 
@@ -108,4 +110,3 @@ Now you have:
 4. **Setup incident handler** with custom instructions for automated diagnosis and mitigation
 5. **Simulate memory leak** using the deployed application endpoints
 6. **Create incident in Service Now** to trigger SRE agent response
-
