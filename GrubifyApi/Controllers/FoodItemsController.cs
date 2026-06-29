@@ -239,10 +239,13 @@ namespace GrubifyApi.Controllers
             }
         };
 
-        private static readonly IReadOnlyDictionary<string, List<FoodItem>> FoodItemsByCategory =
+        private static readonly IReadOnlyDictionary<string, IReadOnlyList<FoodItem>> FoodItemsByCategory =
             FoodItems
                 .GroupBy(item => item.Category, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<FoodItem>)group.ToList(),
+                    StringComparer.OrdinalIgnoreCase);
 
         public FoodItemsController(ILogger<FoodItemsController> logger, IConfiguration configuration)
         {
@@ -287,7 +290,8 @@ namespace GrubifyApi.Controllers
 
             if (ShouldSimulateDbConnectTimeout())
             {
-                _logger.LogError("Failed to fetch products by category due to DB connect timeout. category={Category}", category);
+                var sanitizedCategory = SanitizeForLog(category);
+                _logger.LogError("Failed to fetch products by category due to DB connect timeout. category={Category}", sanitizedCategory);
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new
                 {
                     status = "degraded",
@@ -306,7 +310,7 @@ namespace GrubifyApi.Controllers
 
             var allCategoryItems = FoodItemsByCategory.TryGetValue(category, out var categoryItems)
                 ? categoryItems
-                : new List<FoodItem>();
+                : Array.Empty<FoodItem>();
 
             var items = allCategoryItems.Skip(offset).Take(limit).ToList();
             stopwatch.Stop();
@@ -317,9 +321,10 @@ namespace GrubifyApi.Controllers
             if (stopwatch.ElapsedMilliseconds > slowQueryThresholdMs)
             {
                 Response.Headers["X-Category-Query-State"] = "slow-success";
+                var sanitizedCategory = SanitizeForLog(category);
                 _logger.LogWarning(
                     "Slow successful category query. category={Category} duration_ms={DurationMs} limit={Limit} offset={Offset}",
-                    category,
+                    sanitizedCategory,
                     stopwatch.ElapsedMilliseconds,
                     limit,
                     offset);
@@ -376,5 +381,8 @@ namespace GrubifyApi.Controllers
             var delay = _configuration.GetValue<int?>("IncidentSimulation:CategoryQueryDelayMs") ?? 0;
             return Math.Max(0, delay);
         }
+
+        private static string SanitizeForLog(string value)
+            => value.Replace("\r", "\\r").Replace("\n", "\\n");
     }
 }
