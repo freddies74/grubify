@@ -1,12 +1,21 @@
 using Microsoft.AspNetCore.Mvc;
 using GrubifyApi.Models;
+using System.Diagnostics;
 
 namespace GrubifyApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Route("api/products")]
     public class FoodItemsController : ControllerBase
     {
+        private const int DefaultCategoryLimit = 100;
+        private const int MaxCategoryLimit = 500;
+        private const int DefaultSlowQueryThresholdMs = 150;
+
+        private readonly ILogger<FoodItemsController> _logger;
+        private readonly IConfiguration _configuration;
+
         private static readonly List<FoodItem> FoodItems = new()
         {
             // Tony's Italian Bistro items
@@ -230,6 +239,20 @@ namespace GrubifyApi.Controllers
             }
         };
 
+        private static readonly IReadOnlyDictionary<string, IReadOnlyList<FoodItem>> FoodItemsByCategory =
+            FoodItems
+                .GroupBy(item => item.Category, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<FoodItem>)group.ToList(),
+                    StringComparer.OrdinalIgnoreCase);
+
+        public FoodItemsController(ILogger<FoodItemsController> logger, IConfiguration configuration)
+        {
+            _logger = logger;
+            _configuration = configuration;
+        }
+
         [HttpGet]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItems()
         {
@@ -255,10 +278,62 @@ namespace GrubifyApi.Controllers
         }
 
         [HttpGet("category/{category}")]
-        public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
+        public async Task<ActionResult<IEnumerable<FoodItem>>> GetFoodItemsByCategory(
+            string category,
+            [FromQuery] int limit = DefaultCategoryLimit,
+            [FromQuery] int offset = 0)
         {
-            var items = FoodItems.Where(f => 
-                f.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (limit <= 0 || limit > MaxCategoryLimit || offset < 0)
+            {
+                return BadRequest($"Invalid pagination values. limit must be between 1 and {MaxCategoryLimit} and offset must be >= 0.");
+            }
+
+            if (ShouldSimulateDbConnectTimeout())
+            {
+                var sanitizedCategory = SanitizeForLog(category);
+                _logger.LogError("Failed to fetch products by category due to DB connect timeout. category={Category}", sanitizedCategory);
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    status = "degraded",
+                    dependency = "database",
+                    failureType = "connect-timeout",
+                    category
+                });
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+            var simulatedDelayMs = GetCategoryQueryDelayMs();
+            if (simulatedDelayMs > 0)
+            {
+                await Task.Delay(simulatedDelayMs);
+            }
+
+            var allCategoryItems = FoodItemsByCategory.TryGetValue(category, out var categoryItems)
+                ? categoryItems
+                : Array.Empty<FoodItem>();
+
+            var items = allCategoryItems.Skip(offset).Take(limit).ToList();
+            stopwatch.Stop();
+
+            var slowQueryThresholdMs = _configuration.GetValue<int?>("IncidentSimulation:SlowCategoryQueryThresholdMs")
+                ?? DefaultSlowQueryThresholdMs;
+
+            if (stopwatch.ElapsedMilliseconds > slowQueryThresholdMs)
+            {
+                Response.Headers["X-Category-Query-State"] = "slow-success";
+                var sanitizedCategory = SanitizeForLog(category);
+                _logger.LogWarning(
+                    "Slow successful category query. category={Category} duration_ms={DurationMs} limit={Limit} offset={Offset}",
+                    sanitizedCategory,
+                    stopwatch.ElapsedMilliseconds,
+                    limit,
+                    offset);
+            }
+            else
+            {
+                Response.Headers["X-Category-Query-State"] = "healthy";
+            }
+
             return Ok(items);
         }
 
@@ -297,5 +372,17 @@ namespace GrubifyApi.Controllers
 
             return Ok(items.ToList());
         }
+
+        private bool ShouldSimulateDbConnectTimeout()
+            => _configuration.GetValue<bool>("IncidentSimulation:SimulateDbConnectTimeout");
+
+        private int GetCategoryQueryDelayMs()
+        {
+            var delay = _configuration.GetValue<int?>("IncidentSimulation:CategoryQueryDelayMs") ?? 0;
+            return Math.Max(0, delay);
+        }
+
+        private static string SanitizeForLog(string value)
+            => value.Replace("\r", "\\r").Replace("\n", "\\n");
     }
 }
