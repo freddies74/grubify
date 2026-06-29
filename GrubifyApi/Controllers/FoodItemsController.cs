@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using Microsoft.AspNetCore.Mvc;
 using GrubifyApi.Models;
 
@@ -230,6 +231,11 @@ namespace GrubifyApi.Controllers
             }
         };
 
+        private static readonly FrozenDictionary<string, FoodItem[]> FoodItemsByCategory =
+            FoodItems
+                .GroupBy(foodItem => foodItem.Category, StringComparer.OrdinalIgnoreCase)
+                .ToFrozenDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+
         [HttpGet]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItems()
         {
@@ -257,9 +263,12 @@ namespace GrubifyApi.Controllers
         [HttpGet("category/{category}")]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
         {
-            var items = FoodItems.Where(f => 
-                f.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
-            return Ok(items);
+            if (string.IsNullOrWhiteSpace(category))
+            {
+                return Ok(Array.Empty<FoodItem>());
+            }
+
+            return Ok(FoodItemsByCategory.GetValueOrDefault(category.Trim(), Array.Empty<FoodItem>()));
         }
 
         [HttpGet("search")]
