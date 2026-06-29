@@ -230,6 +230,10 @@ namespace GrubifyApi.Controllers
             }
         };
 
+        private static readonly Dictionary<string, FoodItem[]> FoodItemsByCategory = FoodItems
+            .GroupBy(foodItem => foodItem.Category, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+
         [HttpGet]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItems()
         {
@@ -257,9 +261,15 @@ namespace GrubifyApi.Controllers
         [HttpGet("category/{category}")]
         public ActionResult<IEnumerable<FoodItem>> GetFoodItemsByCategory(string category)
         {
-            var items = FoodItems.Where(f => 
-                f.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
-            return Ok(items);
+            if (string.IsNullOrWhiteSpace(category))
+            {
+                return Ok(Array.Empty<FoodItem>());
+            }
+
+            return Ok(
+                FoodItemsByCategory.TryGetValue(category.Trim(), out var items)
+                    ? items
+                    : Array.Empty<FoodItem>());
         }
 
         [HttpGet("search")]
