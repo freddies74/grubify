@@ -7,7 +7,7 @@ namespace GrubifyApi.Controllers
     [Route("api/[controller]")]
     public class FoodItemsController : ControllerBase
     {
-        private static readonly List<FoodItem> FoodItems = new()
+        private static readonly FoodItem[] FoodItems = new FoodItem[]
         {
             // Tony's Italian Bistro items
             new FoodItem
@@ -266,8 +266,10 @@ namespace GrubifyApi.Controllers
                 return Ok(Array.Empty<FoodItem>());
             }
 
+            var normalizedCategory = category.Trim();
+
             return Ok(
-                FoodItemsByCategory.TryGetValue(category.Trim(), out var items)
+                FoodItemsByCategory.TryGetValue(normalizedCategory, out var items)
                     ? items
                     : Array.Empty<FoodItem>());
         }
